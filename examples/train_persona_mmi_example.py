@@ -52,14 +52,14 @@ def main(_):
         [first_model, second_model, mmi_model], model_dir, params, scope="group")
 
     print("Getting sources..")
-    fields = {"train/inputs": "int", "train/targets": "int", "train/speaker": "int"}
+    fields = {"train/inputs": "int", "train/targets": "int", "train/speakers": "int"}
     train_source = DataSource(FLAGS.train_file, fields)
     autoenc_source = DataSource(FLAGS.autoenc_file, fields)
     test_source = DataSource(FLAGS.test_file, fields)
     
-    train_field_map = {"inputs": "train/inputs", "targets": "train/targets", "speaker_ids": "train/speaker"}
-    autoenc_field_map = {"inputs": "train/inputs", "targets": "train/inputs", "speaker_ids": "train/speaker"}
-    mmi_field_map = {"inputs": "train/targets", "targets": "train/inputs", "speaker_ids": "train/speaker"}
+    train_field_map = {"inputs": "train/inputs", "targets": "train/targets", "speaker_ids": "train/speakers"}
+    autoenc_field_map = {"inputs": "train/inputs", "targets": "train/inputs", "speaker_ids": "train/speakers"}
+    mmi_field_map = {"inputs": "train/targets", "targets": "train/inputs", "speaker_ids": "train/speakers"}
 
     paired_input_fn = train_source.get_input_fn("paired_in", train_field_map, None, FLAGS.batch_size)
     autoenc_input_fn = train_source.get_input_fn("autoenc_in", autoenc_field_map, None, FLAGS.batch_size)
