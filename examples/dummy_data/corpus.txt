@@ -1,0 +1,60 @@
+I am {}
+I work as {}
+{}
+an admin
+an engineer
+a lawyer
+a social worker
+a student
+{}
+my favorite color is {}
+i love {}
+red
+green
+magenta
+purple
+orange
+I am from {}
+I live in {}
+in {}
+near {}
+london
+seattle
+boston
+barcelona
+tacoma
+I am {}
+{} years old
+about {}
+25
+42
+51
+67
+21
+about {}
+i think around {}
+{}
+200 dollars
+500 dollars
+700 dollars
+900 dollars
+50 dollars
+I am feeling {}
+I am {}
+good
+great
+awesome
+terrible
+awful
+a lawyer
+a student
+green
+magenta
+portland
+london
+25
+20
+700 dollars
+50 dollars
+great
+good

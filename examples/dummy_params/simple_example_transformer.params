@@ -1,0 +1,7 @@
+use_default_params: True
+vocab_file: ./dummy_data/vocab.dic
+max_length: 30
+d_model: 64
+encoder/depth: 2
+decoder/depth: 3
+d_ff: 128

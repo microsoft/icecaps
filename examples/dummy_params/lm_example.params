@@ -1,0 +1,4 @@
+use_default_params: True
+vocab_file: ./dummy_data/vocab.dic
+hidden_units: 64
+ngram_dim: 7

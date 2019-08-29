@@ -1,0 +1,36 @@
+what are you doing for a living ?	13	I am a lawyer
+what are you doing for a living ?	14	I am a student
+what are you doing for a living ?	13	I work as a lawyer
+what are you doing for a living ?	14	I work as a student
+what are you doing for a living ?	13	a lawyer
+what are you doing for a living ?	14	a student
+what is your favorite color ?	13	green
+what is your favorite color ?	14	magenta
+what is your favorite color ?	13	my favorite color is green
+what is your favorite color ?	14	my favorite color is magenta
+what is your favorite color ?	13	i love green
+what is your favorite color ?	14	i love magenta
+where do you live ?	13	I am from portland
+where do you live ?	14	I am from london
+where do you live ?	13	I live in portland
+where do you live ?	14	I live in london
+where do you live ?	13	in portland
+where do you live ?	14	in london
+where do you live ?	13	near portland
+where do you live ?	14	near london
+how old are you ?	13	I am 25
+how old are you ?	14	I am 20
+how old are you ?	13	25 years old
+how old are you ?	14	20 years old
+how old are you ?	13	about 25
+how old are you ?	14	about 20
+how much money do you have ?	13	about 700 dollars
+how much money do you have ?	14	about 50 dollars
+how much money do you have ?	13	i think around 700 dollars
+how much money do you have ?	14	i think around 50 dollars
+how much money do you have ?	13	700 dollars
+how much money do you have ?	14	50 dollars
+how are you doing ?	13	I am feeling great
+how are you doing ?	14	I am feeling good
+how are you doing ?	13	I am great
+how are you doing ?	14	I am good
