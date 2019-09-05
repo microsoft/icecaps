@@ -18,10 +18,6 @@ class DataHeader:
 
 
 class DataProcessor:
-    # sorting/shuffling
-    # byte pair encoding
-    # trait grounding
-
     def __init__(self, in_files, headers):
         self.in_files = in_files
         if isinstance(self.in_files, str):
@@ -150,18 +146,17 @@ class DataProcessor:
         for i in range(len(self.headers)):
             vocab_ = self.headers[i].vocab_file
             mode = self.headers[i].vocab_mode
-            if ((vocab_ is not None) and 
-                (vocab_ not in self.vocabs) and 
-                (mode != "read")):
-                read_only = False
-                if mode == "write":
-                    self.vocabs[vocab_] = Vocabulary()
-                elif mode == "append":
-                    self.vocabs[vocab_] = Vocabulary(fname=vocab_)
+            if vocab_ is not None and vocab_ not in self.vocabs: 
+                if mode != "read":
+                    read_only = False
+                    if mode == "write":
+                        self.vocabs[vocab_] = Vocabulary()
+                    elif mode == "append":
+                        self.vocabs[vocab_] = Vocabulary(fname=vocab_)
+                    else:
+                        raise ValueError("Vocab mode " + str(mode) + " not supported.")
                 else:
-                    raise ValueError("Vocab mode " + str(mode) + " not supported.")
-            elif mode == "read":
-                self.vocabs[vocab_] = Vocabulary(fname=vocab_)
+                    self.vocabs[vocab_] = Vocabulary(fname=vocab_)
         if read_only:
             return
         line_ctr = 0
@@ -383,6 +378,7 @@ class DataProcessor:
                     row[i] = self.vocabs[vocab_].tokenize(row[i], fixed_vocab=(mode_ == "read"))
                     feature[key_] = self.int64_feature(row[i])
                 elif type_ == "int":
+                    print([int(row[i])])
                     feature[key_] = self.int64_feature([int(row[i])])
                 elif type_ == "float":
                     feature[key_] = self.float_feature([float(row[i])])

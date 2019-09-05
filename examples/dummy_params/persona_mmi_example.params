@@ -1,10 +1,10 @@
 use_default_params: True
 vocab_file: ./dummy_data/vocab_personalized.dic
 cell_type: lstm
-depth: 2
-hidden_units: 32
-token_embed_dim: 32
+depth: 1
+hidden_units: 256
+token_embed_dim: 128
 tie_token_embeddings: True
 mmi/depth: 1
-mmi/hidden_units: 32
-mmi/token_embed_dim: 32
+mmi/hidden_units: 256
+mmi/token_embed_dim: 128

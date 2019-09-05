@@ -10,20 +10,22 @@ import math
 import subprocess
 import os
 
+from icecaps.io.data_processing import DataProcessor, DataHeader
+
 parser = argparse.ArgumentParser(
     description='Generates dummy data with a unique persona for the autoencoder data')
-parser.add_argument('-o', '--out', help='file to write the seq2seq data to',
-                    default='data_simple_persona\\data_seq2seq.txt')
-parser.add_argument('-ao', '--autoenc_out', help='file to write the autoencoder data to',
-                    default='data_simple_persona\\data_autoenc.txt')
-parser.add_argument('-avo', '--autoenc_valid_out', help='file to write the autoencoder validation data to',
-                    default='data_simple_persona\\data_autoenc_valid.txt')
-parser.add_argument('-co', '--corpus_out', help='file to write the autoencoder data to',
-                    default='data_simple_persona\\corpus.txt')
-parser.add_argument(
-    '-c', '--count', help='repeat data to get minimum number of seq2seq data entries', default=10000, type=int)
-parser.add_argument('-ac', '--autoenc_count',
-                    help='repeat data to get minimum number of autoencoder data entries', default=2000, type=int)
+parser.add_argument('-po', '--paired_out', help='file to write the paired data to',
+                    default='my_paired_personalized')
+parser.add_argument('-uo', '--unpaired_out', help='file to write the unpaired data to',
+                    default='my_unpaired_personalized')
+parser.add_argument('-pvo', '--paired_validation_out', help='file to write the paired validation data to',
+                    default='my_paired_personalized_validation')
+parser.add_argument('-vo', '--vocab_out', help='file to write vocabulary file to',
+                    default='my_vocab_personalized')
+parser.add_argument('-pc', '--paired_count', help='repeat data to get minimum number of paired data entries',
+                    default=10000, type=int)
+parser.add_argument('-uc', '--unpaired_count',
+                    help='repeat data to get minimum number of unpaired data entries', default=2000, type=int)
 args = vars(parser.parse_args())
 
 seed = 1
@@ -53,6 +55,14 @@ answer_templates = [  # Persona id 0               1               2            
                                                             'great',        'awesome',      'terrible',         'awful']],
 ]
 
+def write_file_data(file_path, data, replicate_to_count):
+    with open(file_path, 'w', encoding="utf8") as f:
+        print(file_path)
+        count = 0
+        while(count < replicate_to_count):
+            f.writelines(data)
+            count += len(data)
+
 # Seq2Seq Data:
 
 data = []
@@ -64,8 +74,8 @@ sample_prob = 0.001  # to ensure the final dataset size is pretty small
 personality = np.zeros(shape=(num_questions), dtype=int)
 base = num_pure_personas
 persona_id = 0
-for p in range(num_possible_personas):
 
+for p in range(num_possible_personas):
     for k in range(len(personality)):   # iterate through a base(num_pure_personas) space
         if (personality[k] == (base - 1)):
             personality[0:k+1] = 0
@@ -86,23 +96,12 @@ for p in range(num_possible_personas):
     persona_id += 1
 
 np.random.shuffle(data)
-
-
-def write_file_data(file_path, data, replicate_to_count):
-    with open(file_path, 'w', encoding="utf8") as f:
-        count = 0
-        while(count < replicate_to_count):
-            f.writelines(data)
-            count += len(data)
-
-
-write_file_data(args["out"], data, args["count"])
+write_file_data(args["paired_out"] + ".txt", data, args["paired_count"])
 
 
 # Auto Enc Data:
-
 autoenc_data = []
-autoend_valid_data = []
+autoenc_valid_data = []
 persona_id += 1  # grab the next id
 
 # add two new unique personas. Note that the vocab is a subset of the main s2s dataset. See *NOTE below.
@@ -111,8 +110,7 @@ autoenc_answers = [['a lawyer',    'a student'],
                    ['portland',      'london'],
                    ['25',          '20'],
                    ['700 dollars', '50 dollars'],
-                   ['great',       'good']
-                   ]
+                   ['great',       'good']]
 
 # Use the same answer formats as the original personas.
 autoenc_data = []
@@ -125,58 +123,25 @@ for i, question in enumerate(questions):
         entries = [(question + "\t{}\t" + template + "\n").format(persona_id + ans_idx, ans)
                    for ans_idx, ans in enumerate(autoenc_answers[i])]
         autoenc_valid_data.extend(entries)
-
 np.random.shuffle(autoenc_data)
-
-write_file_data(args["autoenc_valid_out"], autoenc_valid_data, 1)
-write_file_data(args["autoenc_out"], autoenc_data, args["autoenc_count"])
-
-
-def flatten_to_list(data):
-    corpus = []
-    for g in np.reshape(data, -1):
-        if type(g) is list:
-            for e in g:
-                corpus.append(e + "\n")
-        else:
-            corpus.append(g + "\n")
-    return corpus
-
-
-write_file_data(args["corpus_out"], flatten_to_list(
-    answer_templates) + flatten_to_list(autoenc_answers), 1)
+write_file_data(args["paired_validation_out"] + ".txt", autoenc_valid_data, 1)
+write_file_data(args["unpaired_out"] + ".txt", autoenc_data, args["unpaired_count"])
 
 
 # Create the dict and tfrecord files
 
-cwd = os.path.dirname(os.path.abspath(__file__))
-subprocess.call(["python", "../tools/create_dict.py", "--input",
-                 "corpus.txt",  "--out_file", "data.dic"], cwd=cwd)
-subprocess.call(["python", "../text2tfrecord.py", "--use_speaker_ids", "--vocab_file", "data.dic",
-                 "--text_file", "data_seq2seq.txt", "--tfrecord_file", "data_seq2seq.tfrecord"], cwd=cwd)
-subprocess.call(["python", "../text2tfrecord.py", "--use_speaker_ids", "--vocab_file", "data.dic",
-                 "--text_file", "data_autoenc.txt", "--tfrecord_file", "data_autoenc.tfrecord", "--autoencode"], cwd=cwd)
-subprocess.call(["python", "../text2tfrecord.py", "--use_speaker_ids", "--vocab_file", "data.dic",
-                 "--text_file", "data_autoenc_valid.txt", "--tfrecord_file", "data_autoenc_valid.tfrecord"], cwd=cwd)
+in_header = DataHeader("train/inputs", "text", args["vocab_out"] + ".dic", "write")
+tgt_header = DataHeader("train/targets", "text", args["vocab_out"] + ".dic", "write")
+spk_header = DataHeader("train/speakers", "int")
 
+data_proc = DataProcessor(args["paired_out"] + ".txt", [in_header, spk_header, tgt_header])
+data_proc.build_vocab_files()
+data_proc.write_to_tfrecord(args["paired_out"] + ".tfrecord")
+in_header.vocab_mode = "read"
+tgt_header.vocab_mode = "read"
 
-# *NOTE
-# Model a personality that says 'Ummm', 'yeah' and 'like' a lot.
-#
-# This doesn't work today. We are limited to concepts and vocabulary that already exists in the
-# main s2s data
-# autoenc_answers=[
-# [ ["yeah , I am like a {}", "yeah , I work as {}", "ummm {}"],                      'a chef'],
-# [ ['ummm {} i think', 'yeah , my favorite color is {}', 'i like love {}'],          'purple'],
-# [ ['yeah I am from {}', 'ummm , I live in {}', 'in like {}', 'near {}'],            'portland'],
-# [ ['I am like {}', 'yeah ummm like {} years old', 'ummm about {}'],                 '24'],
-# [ ['yeah , about {}', 'ummm i think around like {}', 'like {}'],                    '1234 dollars'],
-# [ ["I am feeling like {}", 'ummm I am {}'],                                         'rad'],
-# ]
-#
-# for i, question in enumerate(questions):
-#     for template in autoenc_answers[i][0]:
-#         entries = [ ('{}\t' + template + '\n').format(persona_id, autoenc_answers[i][1]) ]
-#         autoenc_data.extend(entries)
-#         entries = [(question + "\t{}\t" + template + "\n").format(persona_id, autoenc_answers[i][1])]
-#         autoend_valid_data.extend(entries)
+data_proc = DataProcessor(args["unpaired_out"] + ".txt", [spk_header, in_header])
+data_proc.write_to_tfrecord(args["unpaired_out"] + ".tfrecord")
+
+data_proc = DataProcessor(args["paired_validation_out"] + ".txt", [in_header, spk_header, tgt_header])
+data_proc.write_to_tfrecord(args["paired_validation_out"] + ".tfrecord")

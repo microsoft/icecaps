@@ -35,9 +35,9 @@ class PersonaSeq2SeqDecoderEstimator(Seq2SeqDecoderEstimator):
     def embed_sparse_to_dense(self, sparse):
         with tf.variable_scope('embed_sparse_to_dense', reuse=tf.AUTO_REUSE):
             tokens_dense = tf.nn.embedding_lookup(self.token_embeddings, sparse)
-            speaker_ids_ts = tf.cast(self.features["speaker_ids"], tf.int32)
+            speakers_sparse = tf.cast(self.features["speaker_ids"], tf.int32)
             speakers_dense = tf.nn.embedding_lookup(
-                self.speaker_embeddings, speaker_ids_ts)
+                self.speaker_embeddings, speakers_sparse)
             dense = tokens_dense + speakers_dense
         return dense
 
