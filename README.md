@@ -2,7 +2,7 @@
 
 Microsoft Icecaps is an open-source toolkit for building neural conversational systems. Icecaps provides an array of tools from recent conversation modeling and general NLP literature within a flexible paradigm that enables complex multi-task learning setups. 
 
-Icecaps is currently on version 0.1.1. We have a number of features in the works for version 0.2, including new models and new data processing functionality. Please be aware that Icecaps 0.2 will not guarantee backwards compatibility and may cause breaking changes.
+Icecaps is currently on version 0.1.2. We have a number of features in the works for version 0.2, including new models and new data processing functionality. Please be aware that Icecaps 0.2 will not guarantee backwards compatibility and may cause breaking changes.
 
 
 ## Dependencies
