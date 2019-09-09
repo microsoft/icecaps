@@ -56,7 +56,7 @@ def main(_):
     if FLAGS.interactive:
         print("Interactive decoding...")
         vocab = Vocabulary(fname=params["vocab_file"])
-        decoding.cmd_decode(first_model, vocab)
+        decoding.cmd_decode(model, vocab)
 
 
 if __name__ == '__main__':
