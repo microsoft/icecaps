@@ -2,7 +2,7 @@
 
 Microsoft Icecaps is an open-source toolkit for building neural conversational systems. Icecaps provides an array of tools from recent conversation modeling and general NLP literature within a flexible paradigm that enables complex multi-task learning setups. 
 
-Icecaps is currently on version 0.1.2. We have a number of features in the works for version 0.2, including new models and new data processing functionality. Please be aware that Icecaps 0.2 will not guarantee backwards compatibility and may cause breaking changes.
+Icecaps is currently on version 0.1.3. We have a number of features in the works for version 0.2, including new models and new data processing functionality. Please be aware that Icecaps 0.2 will not guarantee backwards compatibility and may cause breaking changes.
 
 
 ## Dependencies
@@ -16,8 +16,8 @@ If your machine has a GPU, we recommend you instead install from `requirements-g
 
 ## Tutorials
 
-We will be publishing tutorials soon on how to build various kinds of conversational scenarios in Icecaps.
-Until then, we encourage you to look at the scripts in the `examples/` directory and use them as templates.
+We have provided some scripts in the `examples/` directory. 
+These scripts will introduce you to Icecaps' architecture, and we encourage you to use them as templates.
 
 `examples/train_simple_example.py` is our "Hello World" script: 
 it builds a simple seq2seq training scenario while demonstrating the basic five-phase pattern that Icecaps scripts follow.
@@ -27,6 +27,8 @@ the core aspects of Icecaps' architecture.
 
 Finally, `examples/data_processing_example.py` gives an example of how to convert a raw text dataset to TFRecord files, 
 which Icecaps uses to feed its data pipelines during training.
+
+We plan to publish more tutorials on other kinds of conversational scenarios in the future.
 
 
 ## Pre-Trained Systems

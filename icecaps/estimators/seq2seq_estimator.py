@@ -15,3 +15,12 @@ class Seq2SeqEstimator(EstimatorChain):
             model_dir, params, config=config, scope=scope+"/decoder", is_mmi_model=is_mmi_model)
         super().__init__([self.encoder, self.decoder],
                          model_dir, params, config, scope)
+
+    @classmethod
+    def list_params(cls, expected_params=None):
+        print("Seq2Seq Encoder:")
+        Seq2SeqEncoderEstimator.list_params(expected_params)
+        print()
+        print("Seq2Seq Decoder:")
+        Seq2SeqDecoderEstimator.list_params(expected_params)
+        print()

@@ -1,7 +1,7 @@
 use_default_params: True
 vocab_file: ./dummy_data/vocab.dic
 cell_type: lstm
-depth: 1
+depth: 2
 hidden_units: 64
 token_embed_dim: 32
 tie_token_embeddings: True

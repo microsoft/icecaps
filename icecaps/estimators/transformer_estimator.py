@@ -15,3 +15,12 @@ class TransformerEstimator(EstimatorChain):
             model_dir, params, config, scope=scope+"/decoder", is_mmi_model=is_mmi_model)
         super().__init__([self.encoder, self.decoder],
                          model_dir, params, config, scope)
+
+    @classmethod
+    def list_params(cls, expected_params=None):
+        print("Transformer Encoder:")
+        TransformerEncoderEstimator.list_params(expected_params)
+        print()
+        print("Transformer Decoder:")
+        TransformerDecoderEstimator.list_params(expected_params)
+        print()

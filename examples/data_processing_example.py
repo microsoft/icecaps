@@ -10,7 +10,7 @@ from icecaps.io.data_processing import DataProcessor, DataHeader
 
 def main(_):
     '''
-    In this example, we present a simple example of our data processing tools. We will convert
+    In this example, we present a basic example of our data processing tools. We will convert
     a personalized conversational text data set to TFRecords, the format TensorFlow requires
     for feeding in data efficiently. We will use the provided dummy data set found in
     dummy_data/paired_personalized.txt and dummy_data/unpaired_personalized.txt . 
