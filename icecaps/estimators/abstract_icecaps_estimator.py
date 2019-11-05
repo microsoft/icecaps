@@ -1,9 +1,12 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.nn.rnn_cell import LSTMStateTuple
 import copy
 import string
-from collections import namedtuple
+import glob
+from collections import namedtuple, OrderedDict
+from tensorflow.nn.rnn_cell import LSTMStateTuple
+
+from icecaps.util.util import natural_sort
 
 
 class AbstractIcecapsEstimator(tf.estimator.Estimator):
@@ -17,13 +20,15 @@ class AbstractIcecapsEstimator(tf.estimator.Estimator):
             self.reported_loss_name = self.scope + "/reported_loss"
             if self.reported_loss_name[0] == '/':
                 self.reported_loss_name = self.reported_loss_name[1:]
-        run_config = tf.estimator.RunConfig()
         params = self.filter_features(params, self.scope)
-        if "summary_steps" in params:
-            run_config = run_config.replace(
-                save_summary_steps=params["summary_steps"])
         if config:
-            run_config = run_config.replace(session_config=config)
+            run_config = config #run_config.replace(session_config=config)
+        else:
+            run_config = tf.estimator.RunConfig()
+            if "summary_steps" in params:
+                run_config = run_config.replace(
+                    save_summary_steps=params["summary_steps"])
+        self.best_ckpt = None
         super().__init__(
             model_fn=self._model_fn, model_dir=model_dir, params=params, config=run_config)
 
@@ -263,8 +268,9 @@ class AbstractIcecapsEstimator(tf.estimator.Estimator):
             tensors_to_log = {"loss": self.reported_loss_name}
             logging_hook = tf.train.LoggingTensorHook(
                 tensors=tensors_to_log, every_n_iter=logging_freq)
-            super().train(input_fn, hooks=hooks+[logging_hook], steps=steps)
+            results = super().train(input_fn, hooks=hooks+[logging_hook], steps=steps)
             print('Training terminated.')
+            return results
         except tf.errors.InvalidArgumentError:
             print('\nModel mismatch!')
             raise
@@ -274,9 +280,50 @@ class AbstractIcecapsEstimator(tf.estimator.Estimator):
             print('Evaluating..')
             if steps == 0:
                 return
-            results = super().evaluate(input_fn, hooks=hooks)
+            results = super().evaluate(
+                input_fn, steps=steps, hooks=hooks, checkpoint_path=(checkpoint_path or self.best_ckpt), name=name)
             print('Evaluating terminated.')
             return results
+        except tf.errors.InvalidArgumentError:
+            print('\nModel mismatch!')
+            raise
+
+    def predict(self, input_fn, predict_keys=None, hooks=None, checkpoint_path=None, yield_single_examples=True):
+        try:
+            print('Predicting..')
+            yield from super().predict(
+                input_fn, predict_keys=predict_keys, hooks=hooks,
+                checkpoint_path=(checkpoint_path or self.best_ckpt), yield_single_examples=yield_single_examples)
+            print('Predicting terminated.')
+        except tf.errors.InvalidArgumentError:
+            print('\nModel mismatch!')
+            raise
+
+    def choose_best_checkpoint(self, input_fn, steps=None, hooks=None, name=None):
+        try:
+            print('Validating all checkpoints..')
+            checkpoint_list = glob.glob(self.model_dir + '/*.index')
+            checkpoint_list = natural_sort(checkpoint_list)
+            validation_scores = OrderedDict()
+            for checkpoint_path in checkpoint_list:
+              print(checkpoint_path)
+              checkpoint = checkpoint_path[:-6]
+              print(checkpoint)
+              #model.reset_hidden_state = True
+              valid_score = self.evaluate(
+                input_fn, steps=steps, hooks=hooks, checkpoint_path=checkpoint, name=name)
+              validation_scores[checkpoint] = valid_score["loss"]
+            print("\Validation scores:")
+            for key_ in validation_scores:
+              print(key_ + ":\t" + str(validation_scores[key_]))
+            best_ckpt = None
+            best_value = None
+            for key_ in validation_scores:
+              if best_ckpt is None or validation_scores[key_] < best_value:
+                best_ckpt = key_
+                best_value = validation_scores[key_]
+            self.best_ckpt = best_ckpt
+            return best_ckpt, best_value
         except tf.errors.InvalidArgumentError:
             print('\nModel mismatch!')
             raise

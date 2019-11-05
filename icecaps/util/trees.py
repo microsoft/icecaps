@@ -202,13 +202,13 @@ def build_tree_from_traversal(values, traversal="dfs", branch_factor=2, temp=Non
         return root
 
 
-def get_degrees(idx2word, placeholder_token='_NULL'):
+def get_degrees(vocab, placeholder_token='_NULL'):
     # From each token, extract the number of leaves it requires.
     degrees = []
-    for i in range(len(idx2word)):
-        if idx2word[i].endswith("_0") or idx2word[i] == placeholder_token or idx2word[i] == self.vocab.end_token_id:
+    for i in range(len(vocab.idx2word)):
+        if vocab.idx2word[i].endswith("_0") or vocab.idx2word[i] == placeholder_token or vocab.idx2word[i] == vocab.end_token_id:
             degrees.append(0)
-        elif idx2word[i].endswith("_1"):
+        elif vocab.idx2word[i].endswith("_1"):
             degrees.append(1)
         else:
             degrees.append(2)

@@ -40,8 +40,14 @@ class EstimatorChain(AbstractIcecapsEstimator):
                     for field in predictions:
                         if field == "outputs":
                             self.features["inputs"] = predictions[field]
+                        elif field.startswith("outputs/"):
+                            suffix = field[8:]
+                            self.features["inputs_" + suffix] = predictions[field]
                         elif field == "inputs":
                             self.features["original_inputs"] = predictions[field]
+                        elif field.startswith("inputs_"):
+                            suffix = field[7:]
+                            self.features["inputs_" + suffix] = predictions[field]
                         else:
                             self.features[field] = predictions[field]
             else:

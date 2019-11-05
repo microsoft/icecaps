@@ -1,23 +1,12 @@
-import os
-import sys
-import random
 import tensorflow as tf
-import copy
 import re
-from collections import defaultdict, OrderedDict
 
+from icecaps.data_io.data_header import DataHeader
+from icecaps.util.trees import TreeNode
 from icecaps.util.vocabulary import Vocabulary
 
 
-class DataHeader:
-    def __init__(self, name, data_type, vocab_file=None, vocab_mode="read"):
-        self.name = name
-        self.data_type = data_type
-        self.vocab_file = vocab_file
-        self.vocab_mode = vocab_mode
-
-
-class DataProcessor:
+class AbstractDataProcessor:
     def __init__(self, in_files, headers):
         self.in_files = in_files
         if isinstance(self.in_files, str):
@@ -25,6 +14,7 @@ class DataProcessor:
         self.headers = headers
         if isinstance(self.headers, DataHeader):
             self.headers = [self.headers]
+        self.fields2idx = {self.headers[i].name : i for i in range(len(self.headers))}
         self.vocabs = dict()
 
     @staticmethod
@@ -89,43 +79,34 @@ class DataProcessor:
             tokens = [eos_token] * (turns - num_context) + tokens
         return " ".join(tokens)
 
-    def row_gen_single_file(self, in_file):
-        if isinstance(in_file, str):
-            with open(in_file, "r", encoding="utf8") as in_f:
-                for line in in_f:
-                    yield line.strip().split("\t")
-        elif isinstance(in_file, tuple) or isinstance(in_file, list):
-            in_fs = []
-            for i in range(len(self.headers)):
-                in_fs.append(open(in_file[i], "r", encoding="utf8"))
-            try:
-                for lines in zip(*in_fs):
-                    yield [l.strip() for l in lines]
-            finally:
-                for i in range(len(self.headers)):
-                    in_fs[i].close()
-        else:
-            raise ValueError("in_file of type " + str(type(in_file)) + " not supported.")
-
-    def row_gen(self):
-        for in_file in self.in_files:
-            yield from self.row_gen_single_file(in_file)
-
-    def process(self, pipeline, line):
+    def _process(self, line, pipeline):
         for fn in pipeline:
             if line is None:
                 break
             line = fn(line)
         return line
 
-    def process_row(self, pipeline, row):
+    def print_lines_processed(self, line_ctr, units="lines"):
+        line_ctr += 1
+        if line_ctr % 10000 == 0:
+            print("\t" + str(line_ctr) + " " + units + " processed..")
+        return line_ctr
+
+    def row_gen(self, line_shard_len=None):
+        for in_file in self.in_files:
+            yield from self.row_gen_single_file(in_file, line_shard_len=line_shard_len)
+
+    def row_gen_single_file(self, in_file, line_shard_len=None):
+        raise NotImplementedError("Abstract method.")
+
+    def process_row(self, row, pipeline):
         break_flag = False
         for i in range(len(row)):
-            if self.headers[i].data_type == "text" and pipeline is not None:
+            if (self.headers[i].data_type == "text" or self.headers[i].data_type == "tree") and pipeline is not None:
                 if isinstance(pipeline, list) or isinstance(pipeline, tuple):
-                    row[i] = self.process(pipeline, row[i])
+                    row[i] = self._process(row[i], pipeline)
                 elif isinstance(pipeline, dict):
-                    row[i] = self.process(pipeline[self.headers[i].name], row[i])
+                    row[i] = self._process(row[i], pipeline[self.headers[i].name])
                 else:
                     raise ValueError("Pipeline type " + str(type(pipeline)) + " is not supported.")
             if row[i] is None:
@@ -133,10 +114,10 @@ class DataProcessor:
                 break
         return not break_flag
 
-    def print_lines_processed(self, line_ctr):
-        line_ctr += 1
-        if line_ctr % 10000 == 0:
-            print("\t" + str(line_ctr) + " lines processed..")
+    def count_lines(self):
+        line_ctr = 0
+        for row in self.row_gen():
+            line_ctr += 1
         return line_ctr
 
     def build_vocab_files(self, count_cutoff=0):
@@ -146,17 +127,18 @@ class DataProcessor:
         for i in range(len(self.headers)):
             vocab_ = self.headers[i].vocab_file
             mode = self.headers[i].vocab_mode
-            if vocab_ is not None and vocab_ not in self.vocabs: 
-                if mode != "read":
-                    read_only = False
-                    if mode == "write":
-                        self.vocabs[vocab_] = Vocabulary()
-                    elif mode == "append":
-                        self.vocabs[vocab_] = Vocabulary(fname=vocab_)
-                    else:
-                        raise ValueError("Vocab mode " + str(mode) + " not supported.")
-                else:
+            if ((vocab_ is not None) and 
+                (vocab_ not in self.vocabs) and 
+                (mode != "read")):
+                read_only = False
+                if mode == "write":
+                    self.vocabs[vocab_] = Vocabulary()
+                elif mode == "append":
                     self.vocabs[vocab_] = Vocabulary(fname=vocab_)
+                else:
+                    raise ValueError("Vocab mode " + str(mode) + " not supported.")
+            elif vocab_ is not None and mode == "read":
+                self.vocabs[vocab_] = Vocabulary(fname=vocab_)
         if read_only:
             return
         line_ctr = 0
@@ -215,7 +197,8 @@ class DataProcessor:
                                 if word + "</EOW>" != reconstructed:
                                     raise ValueError(str(word) + " doesn't match " + str(reconstructed))
                             except:
-                                raise ValueError("Some error with " + str(word) + " and " + str(winner) + " and " + str(word_encodings[word]))
+                                raise ValueError(
+                                    "Some error with " + str(word) + " and " + str(winner) + " and " + str(word_encodings[word]))
                             if i > 0:
                                 key = word_encodings[word][i-1] + word_encodings[word][i]
                                 bigram_counts[key] += self.vocabs[vocab_].word_counts[word]
@@ -256,7 +239,7 @@ class DataProcessor:
                                 new_elem += subword + " "
                         row[i] = new_elem
                 row += row_extension
-                out_f.write("\t".join([str(row[i]) for i in range(len(row))]) + "\n")
+                out_f.write(self.concatenate_segments(row))
                 line_ctr = self.print_lines_processed(line_ctr)
         self.in_files = [out_file]
 
@@ -310,75 +293,64 @@ class DataProcessor:
                                 new_elem += subword + " "
                         row[i] = new_elem
                 row += row_extension
-                out_f.write("\t".join([str(row[i]) for i in range(len(row))]) + "\n")
+                out_f.write(self.concatenate_segments(row))
                 line_ctr = self.print_lines_processed(line_ctr)
                 if max_lines is not None and line_ctr >= max_lines:
                     break
         self.in_files = [out_file]
 
-    def k_tokens_per_line(self, out_file, k=20, hinge=None):
-        # hinge is the name of the feature to split into k tokens per line
-        if hinge is not None:
-            hinge_id = -1
-            for i in range(len(self.headers)):
-                if self.headers[i].name == hinge:
-                    hinge_id = i
-                    break
-            if hinge_id < 0:
-                raise ValueError("Bad hinge: " + hinge + " is not the name of any DataHeader.")
-        else:
-            hinge_id = 0
-        with open(out_file, "w", encoding="utf8") as out_f:
-            out_line_buffer = []
-            line_ctr = 0
-            for row in self.row_gen():
-                tokenized = row[hinge_id].strip().split() + ["<eos>"]
-                for token in tokenized:
-                    out_line_buffer.append(token)
-                    if len(out_line_buffer) >= k:
-                        out_f.write(' '.join(out_line_buffer) + '\n')
-                        out_line_buffer = []
-                line_ctr = self.print_lines_processed(line_ctr)
-            if len(out_line_buffer) > 0:
-                out_f.write(' '.join(out_line_buffer) + '\n')
-        self.in_files = [out_file]
-
-    def write_to_txt(self, out_file, pipeline=None, max_lines=None):
-        print("Writing to txt..")
-        with open(out_file, "w", encoding="utf8") as out_f:
-            line_ctr = 0
-            for row in self.row_gen():
-                if not self.process_row(pipeline, row):
-                    continue
-                out_f.write("\t".join([str(row[i]) for i in range(len(row))]) + "\n")
-                line_ctr = self.print_lines_processed(line_ctr)
-                if max_lines is not None and line_ctr >= max_lines:
-                    break
-        self.in_files = [out_file]
-
-    def write_to_tfrecord(self, out_file, pipeline=None, max_lines=None):
+    def write_to_tfrecord(self, out_file, pipeline=None, max_lines=None, line_gen=None, line_shard_len=None,
+                          streamline=True, traversal="depth_first", max_pos_len=32):
         print("Writing to TFRecord..")
         writer = tf.python_io.TFRecordWriter(out_file)
         line_ctr = 0
-        for row in self.row_gen():
-            if not self.process_row(pipeline, row):
+        if line_gen is None:
+            line_gen = self.row_gen()
+        for row in line_gen:
+            if not self.process_row(row, pipeline):
                 continue
-            feature = dict()
+            feature = {}
             for i in range(len(row)):
                 key_ = self.headers[i].name
                 type_ = self.headers[i].data_type
                 vocab_ = self.headers[i].vocab_file
                 mode_ = self.headers[i].vocab_mode
-                if type_ == "text":
+                if type_ == "text" or type_ == "tree":
                     if vocab_ not in self.vocabs:
                         if mode_ != "write":
                             self.vocabs[vocab_] = Vocabulary(fname=vocab_)
                         else:
                             self.vocabs[vocab_] = Vocabulary()
-                    row[i] = self.vocabs[vocab_].tokenize(row[i], fixed_vocab=(mode_ == "read"))
-                    feature[key_] = self.int64_feature(row[i])
+                    if type_ == "text":
+                        row[i] = self.vocabs[vocab_].tokenize(row[i], fixed_vocab=(mode_ == "read"))
+                        feature[key_] = self.int64_feature(row[i])
+                    else:
+                        tree_ints = []
+                        tree_pos = []
+                        for node in row[i].choose_traversal(traversal):
+                            if streamline:
+                                if node.value == "_NULL" and (not node.parent or node.parent.children[0].value == "_NULL"):
+                                    continue
+                                node.value = str(node.value)
+                                if (not node.is_leaf()) and node.children[0].value == "_NULL":
+                                    if node.children[1].value == "_NULL":
+                                        node.value = str(node.value) + "_0"
+                                    else:
+                                        node.value = str(node.value) + "_1"
+                                if mode_ == "read" and node.value not in self.vocabs[vocab_].word2idx:
+                                    if len(node.value) > 2 and node.value[-2:] == "_0":
+                                        node.value = "_UNK_0"
+                                    elif len(node.value) > 2 and node.value[-2:] == "_1":
+                                        node.value = "_UNK_1"
+                                    else:
+                                        node.value = "_UNK"
+                            tree_ints.append(self.vocabs[vocab_].get_token_id(
+                                node.value, mode_ == "read"))
+                            tree_pos += node.get_padded_positional_encoding(max_pos_len)
+                        field = self.headers[i].name
+                        feature[field] = self.int64_feature(tree_ints)
+                        feature[field + "_pos"] = self.float_feature(tree_pos)
                 elif type_ == "int":
-                    print([int(row[i])])
                     feature[key_] = self.int64_feature([int(row[i])])
                 elif type_ == "float":
                     feature[key_] = self.float_feature([float(row[i])])
@@ -387,8 +359,7 @@ class DataProcessor:
             example = tf.train.Example(
                 features=tf.train.Features(feature=feature))
             writer.write(example.SerializeToString())
-            line_ctr = self.print_lines_processed(line_ctr)
+            line_ctr = self.print_lines_processed(line_ctr, "trees")
             if max_lines is not None and line_ctr >= max_lines:
                 break
         writer.close()
-

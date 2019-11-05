@@ -58,8 +58,7 @@ class Seq2SeqDecoderEstimator(AbstractRecurrentEstimator):
                         labels=self.targets_sparse, predictions=self.gs_hypotheses, weights=self.target_mask),
                     "program_accuracy": tf.metrics.accuracy(
                         labels=tf.zeros([self.batch_size], dtype=tf.int32),
-                        predictions=tf.reduce_sum(tf.cast(self.target_mask, tf.int32) * tf.squared_difference(
-                            self.targets_sparse, tf.cast(self.gs_hypotheses, tf.int32)), -1)),
+                        predictions=tf.reduce_sum(tf.cast(self.target_mask, tf.int32) * tf.squared_difference(self.targets_sparse, tf.cast(self.gs_hypotheses, tf.int32)), -1)),
                 }
                 return tf.estimator.EstimatorSpec(mode, loss=self.reported_loss, eval_metric_ops=self.eval_metric_ops)
 

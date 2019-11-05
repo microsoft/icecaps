@@ -1,6 +1,8 @@
 import sys
 import os
 
+from icecaps.util.trees import TreeNode
+
 class Vocabulary:
     def __init__(self, size=3, fname=None, skip_tokens='', skip_tokens_start=''):
         self.special_tokens = self.END, self.GO, self.UNK = ('_END', '_GO', '_UNK')
@@ -79,8 +81,13 @@ class Vocabulary:
             return self.unk_token_id
 
     def tokenize(self, sentence, fixed_vocab=True, by_char=False, pad_len=None, take_first_n=False):
-        sentence_split = list(
-            sentence) if by_char else sentence.strip().split()
+        if isinstance(sentence, str):
+            sentence_split = list(
+                sentence) if by_char else sentence.strip().split()
+        elif isinstance(sentence, TreeNode):
+            sentence_split = [node.value for node in sentence.depth_first_traversal()]
+        else:
+            raise ValueError("Invalid type.")
         if take_first_n:
             sentence_split = sentence_split[:pad_len]
         tokens = []

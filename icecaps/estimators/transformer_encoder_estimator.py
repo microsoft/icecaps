@@ -20,6 +20,8 @@ class TransformerEncoderEstimator(AbstractTransformerEstimator):
                     "length": self.inputs_length,
                     "token_embeddings": self.token_embeddings,
                 }
+                if "targets_positions" in self.features:
+                    self.predictions["outputs_positions"] = self.features["targets_positions"]
                 for key in [k for k in self.features if (k == 'metadata' or k.startswith('metadata/'))]:
                     predictions[key] = self.features[key]
                 return tf.estimator.EstimatorSpec(mode, predictions=self.predictions)

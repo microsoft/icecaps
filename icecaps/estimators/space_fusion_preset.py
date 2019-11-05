@@ -20,7 +20,7 @@ class SpaceFusionPreset(EstimatorGroup):
         self.core_model = EstimatorChain([self.core_encoder, self.decoder], model_dir, params, scope="core")
         self.noisy_core_model = EstimatorChain([self.core_encoder, self.noise, self.decoder], model_dir, params, scope="noisy_core")
         self.autoencoder = EstimatorChain([self.ae_encoder, self.noise, self.decoder], model_dir, params, scope="ae")
-        self.loss_balance = [0.67, 0.33, 0.5, 0.5, 0.5, 0.25, 0.25]
+        self.loss_balance = [1.0, 1.0, 1.0, 1.0]
         super().__init__([self.core_model, self.noisy_core_model, self.autoencoder], model_dir, params, config=config, scope=scope)
 
     def set_loss_balance(self, loss_balance):
@@ -44,46 +44,23 @@ class SpaceFusionPreset(EstimatorGroup):
             else:
                 interp_features[field] = z_conv.predictions[field]
         loss_interp = self.decoder._model_fn(interp_features, self.mode, self.params).loss
-        return loss_interp
-
-    def dec_loss_interp(self, z_resp, z_nonc, interp_ratio):
-        interp_features = dict()
-        for field in z_resp.predictions:
-            if field == "outputs":
-                interp_features["inputs"] = interp_ratio * z_nonc.predictions["outputs"][:,-1:,:] + (1 - interp_ratio) * z_resp.predictions["outputs"][:,-1:,:]
-            elif field == "state":
-                if isinstance(z_nonc.predictions["state"], tuple):
-                    tmp_state = []
-                    for i in range(len(z_nonc.predictions["state"])):
-                        tmp_state.append(interp_ratio * z_nonc.predictions["state"][i] + (1 - interp_ratio) * z_resp.predictions["state"][i])
-                    interp_features["state"] = type(z_nonc.predictions["state"])(*tmp_state)
-                else:
-                    interp_features["state"] = interp_ratio * z_nonc.predictions["state"] + (1 - interp_ratio) * z_resp.predictions["state"]
-            elif field == "inputs":
-                interp_features["original_inputs"] = z_nonc.predictions[field]
-            else:
-                interp_features[field] = z_nonc.predictions[field]
-        loss_interp = interp_ratio * self.decoder._model_fn(interp_features, self.mode, self.params).loss
-        interp_features["targets"] = z_resp.predictions["targets"]
-        loss_interp += (1 - interp_ratio) * self.decoder._model_fn(interp_features, self.mode, self.params).loss
-        return loss_interp
+        return loss_interp, interp_features
 
     def sqrt_mse(self, z_conv, z_resp):
-        return tf.sqrt(tf.reduce_mean(tf.square(z_conv.predictions["outputs"][:,-1:,:] - z_resp.predictions["outputs"][:,-1:,:])))
+        a = z_conv.predictions["outputs"][:,-1:,:]
+        b = z_resp.predictions["outputs"][:,-1:,:]
+        d = tf.sqrt(tf.reduce_mean(tf.squared_difference(a, b)))
+        return d
 
-    def batch_dist_cross(self, z_conv, z_nonc):
-        expanded_a = z_conv.predictions["outputs"][:,-1:,:]
-        expanded_b = tf.expand_dims(z_nonc.predictions["outputs"][:,-1,:], 0)
-        d_squared = tf.reduce_mean(tf.squared_difference(expanded_a, expanded_b), 2)
-        d = tf.sqrt(tf.maximum(0., d_squared))
-        return tf.reduce_mean(d)
+    def batch_dist_cross(self, z_conv, z_resp, cap=float("inf")):
+        a = z_conv.predictions["outputs"][:,-1:,:]
+        b = tf.expand_dims(z_resp.predictions["outputs"][:,-1,:], 0)
+        d = tf.sqrt(tf.maximum(0.0, tf.reduce_mean(tf.squared_difference(a, b), 2)))
+        d = tf.minimum(cap, d)
+        return tf.reduce_sum(d) / tf.maximum(1.0, tf.cast(tf.shape(a)[0] * (tf.shape(a)[0] - 1), tf.float32))
 
     def batch_dist(self, z_pred, cap=0.3):
-        expanded_a = z_pred.predictions["outputs"][:,-1:,:]
-        expanded_b = tf.expand_dims(z_pred.predictions["outputs"][:,-1,:], 0)
-        d_squared = tf.reduce_mean(tf.squared_difference(expanded_a, expanded_b), 2)
-        d = tf.sqrt(tf.maximum(0., d_squared))
-        return tf.reduce_mean(tf.minimum(cap, d))
+        return self.batch_dist_cross(z_pred, z_pred, cap=cap)
 
     def _model_fn(self, features, mode, params):
         self.extract_args(features, mode, params)
@@ -95,17 +72,13 @@ class SpaceFusionPreset(EstimatorGroup):
         resp_features = copy.copy(conv_features)
         resp_features["inputs"] = resp_features["targets"]
         z_resp = self.autoencoder.calculate_subchain(resp_features, tf.estimator.ModeKeys.PREDICT, params, -1)
-        nonc_features = self.filter_features(features, "nonc")
-        z_nonc = self.autoencoder.calculate_subchain(nonc_features, tf.estimator.ModeKeys.PREDICT, params, -1)
 
-        self.loss  = self.loss_balance[0] * self.dec_loss(z_conv, z_resp, random.random())
-        self.loss += self.loss_balance[1] * self.dec_loss_interp(z_resp, z_nonc, random.random())
-        self.loss += self.loss_balance[2] * self.sqrt_mse(z_conv, z_resp)
-        self.loss += self.loss_balance[3] * self.batch_dist_cross(z_conv, z_nonc)
-        self.loss += self.loss_balance[4] * self.batch_dist(z_conv)
-        self.loss += self.loss_balance[5] * self.batch_dist(z_resp)
-        self.loss += self.loss_balance[6] * self.batch_dist(z_nonc)
-
+        self.loss  = self.loss_balance[0] * self.dec_loss(z_conv, z_resp, 1.0)[0]
+        self.loss += self.loss_balance[1] * self.dec_loss(z_conv, z_resp, 0.0)[0]
+        self.loss += self.loss_balance[2] * self.dec_loss(z_conv, z_resp, random.random())[0]
+        self.loss += self.loss_balance[3] * (
+            self.sqrt_mse(z_conv, z_resp) - self.batch_dist(z_conv) - self.batch_dist(z_resp))
+        
         self.build_optimizer()
         return tf.estimator.EstimatorSpec(
             mode=mode, loss=self.loss, train_op=self.train_op)

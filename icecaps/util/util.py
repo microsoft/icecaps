@@ -2,6 +2,7 @@ import random
 import shutil
 import stat
 import os
+import re
 import numpy as np
 import tensorflow as tf
 
@@ -42,3 +43,20 @@ def get_gpu_mem_config(dynamic_mem):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = dynamic_mem
     return config
+
+def db_retrieval(query, db, db_encoded=None, encoder=None):
+    if db_encoded is None and encoder is None:
+        raise ValueError("db_encoded and encoder can't both be None.")
+    if db_encoded:
+        scores = tf.dot(tf.nn.l2_normalize(query), tf.nn.l2_normalize(db_encoded))
+        best_idx = tf.argmax(scores)
+        best_score = tf.reduce_max(scores)
+        return db[best_idx], best_score
+    else:
+        db_encoded = encoder.model_fn({"inputs": db}, tf.ModeKeys.PREDICT, encoder.params)
+        return db_retrieval_dense(query, db, db_encoded)
+
+def natural_sort(ls): 
+        convert = lambda text: int(text) if text.isdigit() else text.lower() 
+        alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ] 
+        return sorted(ls, key = alphanum_key)

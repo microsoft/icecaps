@@ -78,20 +78,43 @@ class DataSource:
         return _input_fn
 
     @staticmethod
-    def shuffle_input_fns(input_fn_ls, balance=None):
+    def alternate_input_fns(input_fn_ls, num_samples=None):
+        if num_samples is None:
+            num_samples = len(input_fn_ls)
+        def _id_gen(size):
+            _id = 0
+            while True:
+                yield _id
+                _id = (_id + 1) % size
+        def _input_fn(alt_id_gen):
+            feature_ls = []
+            for i in range(num_samples):
+                alt_id = next(alt_id_gen)
+                feature_ls.append(input_fn_ls[alt_id]()[0])
+                alt_id = (alt_id + 1) % len(input_fn_ls)
+            print("LOLOLOLOLO")
+            print(feature_ls)
+            features = tf.concat(feature_ls, 0)
+            return features, None
+        return lambda: _input_fn(_id_gen(len(input_fn_ls)))
+
+    @staticmethod
+    def shuffle_input_fns(input_fn_ls, num_samples=1, balance=None):
         if balance is None:
             balance = [1.0] * len(input_fn_ls)
         total = 0.0
         for elem in balance:
             total += elem
         norm_balance = [elem / total for elem in balance]
-
         def _input_fn():
-            rng = random.random()
-            threshold = 0.0
-            for i in range(len(norm_balance)):
-                threshold += norm_balance[i]
-                if rng < threshold:
-                    return input_fn_ls[i]()
-            return input_fn_ls[-1]()
+            features_ls = []
+            for i in range(num_samples):
+                rng = random.random()
+                threshold = 0.0
+                for i in range(len(norm_balance)):
+                    threshold += norm_balance[i]
+                    if rng < threshold or i + 1 == num_samples:
+                        features_ls.append(input_fn_ls[i]()[0])
+            features = tf.concat(features_ls, 0)
+            return features, None
         return _input_fn

@@ -79,7 +79,7 @@ class TransformerDecoderEstimator(AbstractTransformerEstimator):
         super().extract_args(features, mode, params)
         if self.hparams.modality == "tree":
             self.degrees = tf.cast(trees.get_degrees(
-                self.vocab.idx2word), tf.int32)
+                self.vocab), tf.int32)
 
     def build_embeddings(self):
         super().build_embeddings()

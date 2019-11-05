@@ -21,6 +21,6 @@ class PersonaSeq2SeqEstimator(EstimatorChain):
         print("Seq2Seq Encoder:")
         Seq2SeqEncoderEstimator.list_params(expected_params)
         print()
-        print("PersonaSeq2Seq Decoder:")
+        print("Persona Seq2Seq Decoder:")
         PersonaSeq2SeqDecoderEstimator.list_params(expected_params)
         print()

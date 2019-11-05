@@ -5,9 +5,10 @@ import sys
 import re
 import itertools
 from collections import defaultdict
+from PyQt5 import QtWidgets
 
-from icecaps.io.data_processing import DataProcessor
 import icecaps.util.util as util
+from icecaps.data_io.abstract_data_processor import AbstractDataProcessor
 
 
 class ScoredResult:
@@ -289,7 +290,7 @@ def convert_interactive_input(in_msg, context, vocab, pad_len=200):
         idx = in_msg.index('|')
         speaker = int(in_msg[:idx].strip())
         in_msg = in_msg[idx+1:].strip()
-    in_msg = DataProcessor.basic_preprocess(in_msg)
+    in_msg = AbstractDataProcessor.basic_preprocess(in_msg)
     in_msg = context + in_msg
     tokenized_in_msg = vocab.tokenize(in_msg, pad_len=pad_len)
     return {'message': [tokenized_in_msg], 'speaker': [[speaker]]}
@@ -314,5 +315,6 @@ def interactive_decode(input_msg_listener, model, vocab, outstream=sys.stdout, m
 
 def cmd_decode(model, vocab, mmi_component=None, persona=False, max_len=200, lambda_balance=None, num_turns=1, eos_token=''):
     cmd_listener = lambda: input("Query: ").lower().strip()
-    return interactive_decode(cmd_listener, model, vocab, sys.stdout, mmi_component, persona, max_len, lambda_balance, num_turns, eos_token)
+    return interactive_decode(
+        cmd_listener, model, vocab, sys.stdout, mmi_component, persona, max_len, lambda_balance, num_turns, eos_token)
 

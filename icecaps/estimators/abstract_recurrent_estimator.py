@@ -50,7 +50,7 @@ class AbstractRecurrentEstimator(AbstractIcecapsEstimator):
         elif self.hparams.cell_type == 'gru':
             cell = GRUCell(self.hparams.hidden_units, name=name)
         elif self.hparams.cell_type == 'lstm':
-            cell = LSTMCell(self.hparams.hidden_units, name=name)
+            cell = LSTMCell(self.hparams.hidden_units, name=name, state_is_tuple=False)
         else:
             raise ValueError('Provided cell type not supported.')
         return cell
@@ -68,7 +68,7 @@ class AbstractRecurrentEstimator(AbstractIcecapsEstimator):
             return cell_list
         if len(cell_list) == 1:
             return cell_list[0]
-        return MultiRNNCell(cell_list)
+        return MultiRNNCell(cell_list, state_is_tuple=False)
 
     def build_rnn(self, input_key="inputs"):
         with tf.variable_scope('rnn'):
