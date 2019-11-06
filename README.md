@@ -13,8 +13,8 @@ Please be aware that future versions of Icecaps will not guarantee backwards com
 
 ## Related repository (DialoGPT)
 
-As an orthogonal repository of ICECAPS, we has released a pytorch-transformer-based conversational modeling codebase, called [DialoGPT](https://github.com/microsoft/dialogpt). DialoGPT is an open-source large-scale pretrained response generation system trained on 147M multi-turn dialogue from Reddit discussion threads, yielding the state-of-the-art results on public dialogue generation challenges.
-* The repository is based on huggingface pytorch-transformer and OpenAI GPT-2. It contains data extraction script, model training code and pretrained small (117M) medium (345M) and large (762M) model checkpoint. The current version also contains the evaluation pipeline over DSTC-7 challenge. 
+As an orthogonal repository of ICECAPS, we have released a conversational modeling repository based on pytorch-transformer, called [DialoGPT](https://github.com/microsoft/dialogpt). DialoGPT is an open-source large-scale pretrained response generation system trained on 147M multi-turn dialogue from Reddit discussion threads, yielding the state-of-the-art results on public dialogue generation challenges.
+* The repository is based on [huggingface pytorch-transformer](https://github.com/huggingface/transfer-learning-conv-ai) and [OpenAI GPT-2](https://github.com/openai/gpt-2). It contains data extraction script, model training code and pretrained small (117M) medium (345M) and large (762M) model checkpoint. The current version also contains the evaluation pipeline over DSTC-7 challenge. 
 * The model is trained on 147M multi-turn dialogues from Reddit discussion threads. The largest model can be trained in several hours, with support for distributed training and FP16 option.
 * The system is easy to deploy by following the instructions, and you are welcome to try this out. 
 
