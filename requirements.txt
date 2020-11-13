@@ -1,7 +1,7 @@
 setuptools==41.0.1
 wheel==0.33.4
 pytest==3.9.2
-tensorflow==1.13.1
+tensorflow==2.3.1
 chardet==3.0.4
 nltk==3.4.5
 beautifulsoup4==4.6.0
